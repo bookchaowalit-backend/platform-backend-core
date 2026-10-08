@@ -1,0 +1,8 @@
+system_id: bookchaowalit-backend/book-backend/bookchaowalit-backend-core
+prefix: CARD
+brand: "BACKEND CORE"
+subtitle: "แหล่ง schema contract กลางของ Book Platform"
+footer: "Backend Core — Product Card"
+color: "#2f4b6e"
+audience: internal
+tier: L0
