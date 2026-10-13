@@ -4,7 +4,7 @@
 Usage: ``python3 scripts/check_platform_sync.py [--workspace DIR] [--require-pin]``
 
 Scans ``DIR`` (default: the parent of this repository) for Book Platform
-repositories (``book-*-platform`` and ``book-api-gateway``) and, for each one
+repositories (``platform-*``) and, for each one
 that vendors ``schema/book-platform.contract.v1.schema.json``, fails when the
 copy or its ``.sha256`` pin differs from ``contracts/`` here. A repository
 without a pin is a warning unless ``--require-pin`` is given. Read-only and
@@ -25,7 +25,7 @@ CANONICAL_SCHEMA = f"contracts/{SCHEMA_NAME}"
 CANONICAL_PIN = f"{CANONICAL_SCHEMA}.sha256"
 VENDORED_SCHEMA = f"schema/{SCHEMA_NAME}"
 VENDORED_PIN = f"{VENDORED_SCHEMA}.sha256"
-PLATFORM_GLOBS = ("book-*-platform", "book-api-gateway")
+PLATFORM_GLOBS = ("platform-*",)
 
 
 def _sha256(path: Path) -> str:

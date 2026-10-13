@@ -2,7 +2,7 @@
   "$schema": "../../book-platform.contract.v1.schema.json",
   "schema_version": "book-platform.contract.v1",
   "platform_id": "api-gateway",
-  "repository": "book-api-gateway",
+  "repository": "platform-api-gateway",
   "status": "pilot",
   "api_version": "v1",
   "data_owner": "none",
