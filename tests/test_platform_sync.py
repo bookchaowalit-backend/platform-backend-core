@@ -72,33 +72,33 @@ class PlatformSyncTests(unittest.TestCase):
         return repo
 
     def test_matching_platforms_pass(self) -> None:
-        self.platform("book-identity-platform")
-        self.platform("book-api-gateway")
-        (self.workspace / "book-unrelated").mkdir()
+        self.platform("platform-identity")
+        self.platform("platform-api-gateway")
+        (self.workspace / "unrelated-repo").mkdir()
         self.assertEqual(sync.compare(ROOT, self.workspace), ([], [], 2))
 
     def test_drifted_schema_fails(self) -> None:
-        repo = self.platform("book-data-platform")
+        repo = self.platform("platform-data")
         (repo / sync.VENDORED_SCHEMA).write_text("{}", encoding="utf-8")
         errors, _, _ = sync.compare(ROOT, self.workspace)
         self.assertEqual(len(errors), 1)
-        self.assertIn("book-data-platform", errors[0])
+        self.assertIn("platform-data", errors[0])
 
     def test_stale_pin_fails(self) -> None:
-        repo = self.platform("book-ai-platform")
+        repo = self.platform("platform-ai")
         (repo / sync.VENDORED_PIN).write_text(f"{'0' * 64}  {sync.SCHEMA_NAME}\n", encoding="utf-8")
         errors, _, _ = sync.compare(ROOT, self.workspace)
         self.assertTrue(any("differs from" in error for error in errors), errors)
 
     def test_missing_pin_warns_unless_required(self) -> None:
-        self.platform("book-media-platform", pin=False)
+        self.platform("platform-media", pin=False)
         self.assertEqual(len(sync.compare(ROOT, self.workspace)[1]), 1)
         self.assertEqual(len(sync.compare(ROOT, self.workspace, require_pin=True)[0]), 1)
 
     def test_main_fails_on_empty_workspace(self) -> None:
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(sync.main(["--workspace", str(self.workspace)]), 1)
-            self.platform("book-payment-platform")
+            self.platform("platform-payment")
             self.assertEqual(sync.main(["--workspace", str(self.workspace)]), 0)
 
 
