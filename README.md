@@ -1,4 +1,4 @@
-# bookchaowalit-backend-core
+# platform-backend-core
 
 Starter repository for the `bookchaowalit-backend` organization.
 
