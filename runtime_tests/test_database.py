@@ -106,3 +106,32 @@ def test_pool_exhaustion_is_bounded(db_env):
             assert time.monotonic() - start < 1
     finally:
         db.close()
+
+
+def test_first_migrations_in_different_namespaces_share_safe_history_initialization(db_env):
+    import time
+    dsn = db_env[2]
+    gate = int(uuid4().hex[:14],16)
+    first_dsn = make_conninfo(dsn, application_name='core_test_migration_a')
+    second_dsn = make_conninfo(dsn, application_name='core_test_migration_b')
+    def wait_for_lock(conn, application):
+        deadline = time.monotonic()+5
+        while time.monotonic() < deadline:
+            if conn.execute("SELECT 1 FROM pg_stat_activity WHERE application_name=%s AND wait_event_type='Lock'",(application,)).fetchone():
+                return
+            time.sleep(.01)
+        pytest.fail(f'{application} did not reach controlled database lock')
+    with psycopg.connect(dsn, autocommit=True) as coordinator, ThreadPoolExecutor(max_workers=2) as executor:
+        coordinator.execute('SELECT pg_advisory_lock(%s)',(gate,))
+        first = executor.submit(core().MigrationRunner(first_dsn, namespace='first').apply,
+                                [core().Migration('001',f'SELECT pg_advisory_xact_lock({gate}); CREATE TABLE first_probe (id integer)')])
+        try:
+            wait_for_lock(coordinator,'core_test_migration_a')
+            second = executor.submit(core().MigrationRunner(second_dsn, namespace='second').apply,
+                                     [core().Migration('001','CREATE TABLE second_probe (id integer)')])
+            wait_for_lock(coordinator,'core_test_migration_b')
+        finally:
+            coordinator.execute('SELECT pg_advisory_unlock(%s)',(gate,))
+        assert first.result(timeout=5) == ['001']
+        assert second.result(timeout=5) == ['001']
+        assert coordinator.execute('SELECT namespace,version FROM platform_schema_migrations ORDER BY namespace').fetchall() == [('first','001'),('second','001')]

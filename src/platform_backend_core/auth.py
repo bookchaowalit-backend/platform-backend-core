@@ -64,11 +64,21 @@ class _JWKS:
                 keys = json.loads(raw)['keys']
                 if not isinstance(keys, list) or len(keys) > 64:
                     raise ValueError('invalid JWKS')
+                validated_keys, identifiers = {}, set()
                 for key in keys:
+                    if not isinstance(key, dict):
+                        raise ValueError('invalid JWKS entry')
+                    identifier = key.get('kid')
+                    if not isinstance(identifier, str) or not 1 <= len(identifier) <= 256:
+                        raise ValueError('invalid key identifier')
+                    if identifier in identifiers:
+                        raise ValueError('duplicate key identifier')
+                    identifiers.add(identifier)
                     if key.get('kty') == 'RSA' and key.get('alg', 'RS256') == 'RS256' and key.get('use', 'sig') == 'sig':
-                        if key.get('kid') in self.keys:
-                            raise ValueError('duplicate key identifier')
-                        self.keys[key['kid']] = jwt.PyJWK.from_dict(key).key
+                        validated_keys[identifier] = jwt.PyJWK.from_dict(key).key
+                # Publish only a completely validated response; any failure leaves
+                # the cache empty for the rest of the bounded refresh interval.
+                self.keys = validated_keys
             if kid not in self.keys:
                 raise AuthenticationError('invalid credentials')
             return self.keys[kid]

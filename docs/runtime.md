@@ -155,8 +155,10 @@ allow callers to choose a workspace/session configuration.
 ## Explicit migrations
 
 Pass all immutable migrations in lexicographically ordered, unique versions.
-The runner takes a namespace advisory transaction lock, checks SHA-256 history,
-and applies pending SQL plus history atomically in one transaction. Changed,
+The runner takes the shared history-table advisory lock before the namespace
+advisory lock, in the same order for every runner, and checks SHA-256 history.
+Both locks remain held through commit, so different namespaces also serialize
+while initializing/applying migrations. The runner applies pending SQL plus history atomically in one transaction. Changed,
 missing, reordered or backfilled history fails closed. It uses a separate
 explicit DSN, five-second connection timeout, 30-second statement timeout and
 ten-second lock timeout. Migration SQL is trusted release code and must be
@@ -220,7 +222,7 @@ local socket, creating only unique `core_test_` databases/roles:
 
 - `python3 scripts/check.py`: passed, canonical schemas/pins unchanged.
 - `python3 -m unittest discover -s tests -v`: 17 passed.
-- `PLATFORM_TEST_DSN=... python -m pytest -q`: 63 passed, seven subtests passed,
+- `PLATFORM_TEST_DSN=... python -m pytest -q`: 67 passed, seven subtests passed,
   no database skips. One upstream Starlette/httpx deprecation warning.
 - Editable installation, wheel build and wheel import from an isolated target:
   passed. Wheel artifacts are ignored build outputs, not release publications.
@@ -228,3 +230,10 @@ local socket, creating only unique `core_test_` databases/roles:
 Python 3.12/PostgreSQL 16 CI is configured but was not executed in this local
 session. No provider, deployment, production load or release acceptance is
 claimed by these checks.
+
+
+Independent review regression checks also reproduced and fixed two boundaries:
+a failed JWKS refresh never publishes a partially validated key cache, including
+duplicate/malformed entries, and first migrations from different namespaces
+cannot race the shared history table creation. All four new regression cases
+failed before their fixes and passed afterward on the real disposable database.

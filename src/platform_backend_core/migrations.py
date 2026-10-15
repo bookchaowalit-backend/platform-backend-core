@@ -42,6 +42,9 @@ class MigrationRunner:
         with psycopg.connect(self.dsn, connect_timeout=5) as conn:
             conn.execute('SET LOCAL statement_timeout = 30000')
             conn.execute('SET LOCAL lock_timeout = 10000')
+            # All namespaces share this table. Hold initialization authority
+            # through commit, taking locks in the same order for every runner.
+            conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", ('platform-migrations:shared-history',))
             conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", ('platform-migrations:'+self.namespace,))
             conn.execute('CREATE TABLE IF NOT EXISTS platform_schema_migrations (namespace text NOT NULL, version text NOT NULL, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (namespace,version))')
             existing = dict(conn.execute('SELECT version,checksum FROM platform_schema_migrations WHERE namespace=%s', (self.namespace,)).fetchall())
