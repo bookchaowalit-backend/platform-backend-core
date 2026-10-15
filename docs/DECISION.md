@@ -19,7 +19,7 @@ archived?
 | Status | Shared foundation; CI runs `scripts/check.py` and unit tests | `scaffolded` in `contract.json`; no runtime |
 | Dependents | 10 platform repositories pin its schema digest | None found |
 
-## Evidence (origin/main of each repository, 2026-10-15)
+## Evidence (2026-10-15; origin/main unless stated)
 
 - `contracts/book-platform.contract.v1.schema.json.sha256` here is
   `d3664d19ffbf…`. The vendored schema pin in each of these ten repositories is the same
@@ -27,9 +27,13 @@ archived?
   platform-data, platform-developer, platform-identity, platform-media,
   platform-observability, platform-payment and platform-workflow.
 - `platform-developer/scripts/check_schema_pin.py` names this repository as
-  the canonical copy, and `--canonical` compares against a checkout of it.
-- `platform-workflow/docs/RUNTIME.md` and `docs/RUNBOOK.md` already plan to
-  install a pinned `platform-backend-core` package.
+  the canonical copy (under its former name `bookchaowalit-backend-core`; the
+  script still needs a rename follow-up), and `--canonical` compares against a
+  checkout of it.
+- An open draft PR in platform-workflow (#1, branch
+  `codex/shared-infrastructure-20261015`) plans to install a pinned
+  `platform-backend-core` package (`docs/RUNTIME.md`, `docs/RUNBOOK.md` on that
+  branch).
 - Open draft PR #6 adds a shared workspace-auth and PostgreSQL runtime to this
   repository, so active work depends on it.
 
