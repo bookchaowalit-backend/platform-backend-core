@@ -109,3 +109,32 @@ def test_jwks_requires_https_and_refresh_is_bounded(keys, monkeypatch):
         with pytest.raises(auth.AuthenticationError):
             instance.verify(unknown)
     assert calls == [('https://key.test/jwks',5)]
+
+
+@pytest.mark.parametrize('invalid_tail', ['duplicate', 'malformed', 'invalid-kid'])
+def test_jwks_rejects_entire_failed_refresh_until_valid_refresh(keys, monkeypatch, invalid_tail):
+    from platform_backend_core import auth
+    import io
+    import json
+    key = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(keys[0].public_key()))
+    key.update(kid='test-key', alg='RS256', use='sig')
+    tail = {'duplicate':key, 'malformed':42, 'invalid-kid':{**key,'kid':''}}[invalid_tail]
+    response_keys = [key, tail]
+    clock = [100.0]
+    calls = []
+    class Opener:
+        def open(self, request, timeout):
+            calls.append(request.full_url)
+            return io.BytesIO(json.dumps({'keys':response_keys}).encode())
+    monkeypatch.setattr(auth, 'build_opener', lambda handler:Opener())
+    monkeypatch.setattr(auth.time, 'monotonic', lambda:clock[0])
+    instance = auth.TokenVerifier(issuer='https://issuer.test',audience='tasks',jwks_url='https://key.test/jwks')
+    signed = 'Bearer '+jwt.encode(claims(),keys[0],algorithm='RS256',headers={'kid':'test-key'})
+    for _ in range(3):
+        with pytest.raises(auth.AuthenticationError):
+            instance.verify(signed)
+    assert len(calls) == 1
+    response_keys[:] = [key]
+    clock[0] += 61
+    assert instance.verify(signed).workspace
+    assert len(calls) == 2
