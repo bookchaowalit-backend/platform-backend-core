@@ -120,6 +120,10 @@ class TokenVerifier:
             key = self.key_source(header) if self.key_source else self.public_key
             data = jwt.decode(token, key, algorithms=['RS256'], issuer=self.issuer, audience=self.audience,
                               leeway=self.leeway, options={'require':['sub','ws','iat','exp','jti','iss','aud'], 'strict_aud': True})
+            # Shared services cannot enforce delegation status or revocation.
+            # Presence, including null/partial claims, is unsupported authority.
+            if 'del' in data or 'obo' in data:
+                raise ValueError('unsupported delegation')
             for name in ('iat','exp','nbf'):
                 if name in data and (type(data[name]) not in (int,float) or not math.isfinite(data[name])):
                     raise ValueError('invalid token time')
