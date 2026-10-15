@@ -138,3 +138,17 @@ def test_jwks_rejects_entire_failed_refresh_until_valid_refresh(keys, monkeypatc
     clock[0] += 61
     assert instance.verify(signed).workspace
     assert len(calls) == 2
+
+
+@pytest.mark.parametrize('delegation_claims', [
+    {'del':str(uuid4()),'obo':str(uuid4())},
+    {'del':str(uuid4())},
+    {'obo':str(uuid4())},
+    {'del':None},
+    {'obo':None},
+    {'del':None,'obo':None},
+])
+def test_unsupported_delegation_claims_are_rejected_even_when_null(keys, delegation_claims):
+    data = {**claims(),**delegation_claims}
+    with pytest.raises(core().AuthenticationError,match='invalid credentials'):
+        verifier(keys).verify(token(keys,data))

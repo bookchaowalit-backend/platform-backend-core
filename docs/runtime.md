@@ -71,6 +71,13 @@ Services requiring another rotation policy can inject a bounded key source.
 This is a new workspace profile. It does not replace identity's shadow issuer,
 owner-only `platform-auth-sdk`, delegation checks, revocation checks or the
 special MCP trust profile. Service-specific policy remains with that service.
+Only non-delegated shared human/service tokens are supported. The presence of
+`del` or `obo` is rejected with `AuthenticationError`, including paired, partial,
+empty or null claims; shared services cannot enforce legacy delegation status
+or revocation and must not discard that authority context. Legacy identity and
+cell verifiers retain their existing delegation policy. Release bundles must
+use a core revision containing this rejection; identity's older pinned test-only
+fixture revision remains usable because the disposable fixture API is unchanged.
 
 ## HTTP integration
 
@@ -222,7 +229,7 @@ local socket, creating only unique `core_test_` databases/roles:
 
 - `python3 scripts/check.py`: passed, canonical schemas/pins unchanged.
 - `python3 -m unittest discover -s tests -v`: 17 passed.
-- `PLATFORM_TEST_DSN=... python -m pytest -q`: 67 passed, seven subtests passed,
+- `PLATFORM_TEST_DSN=... python -m pytest -q`: 73 passed, seven subtests passed,
   no database skips. One upstream Starlette/httpx deprecation warning.
 - Editable installation, wheel build and wheel import from an isolated target:
   passed. Wheel artifacts are ignored build outputs, not release publications.
@@ -237,3 +244,9 @@ a failed JWKS refresh never publishes a partially validated key cache, including
 duplicate/malformed entries, and first migrations from different namespaces
 cannot race the shared history table creation. All four new regression cases
 failed before their fixes and passed afterward on the real disposable database.
+
+
+The unsupported-delegation regression signs real RS256 tokens containing paired,
+partial and null `del`/`obo` claims. All six cases failed before the presence
+guard and passed afterward; ordinary workspace tokens remain covered by the
+unchanged successful principal/scope tests.
