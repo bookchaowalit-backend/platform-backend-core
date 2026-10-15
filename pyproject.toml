@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "platform-backend-core"
+version = "0.1.0"
+description = "Shared workspace authentication and PostgreSQL service runtime"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = ["fastapi>=0.115,<1", "psycopg[binary,pool]>=3.2,<4", "PyJWT[crypto]>=2.9,<3"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "httpx>=0.27,<1"]
+
+[project.scripts]
+platform-migrate = "platform_backend_core.migrations:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "runtime_tests"]
+pythonpath = ["src"]
