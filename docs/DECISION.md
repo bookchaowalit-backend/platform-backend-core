@@ -1,7 +1,8 @@
 # Decision: keep platform-backend-core (BOO-154)
 
-**Recommendation: keep.** Do not archive in favour of `book-developer-platform`.
-Recorded 2026-10-15 from repository evidence. The owner still has to confirm it.
+**Decision: keep.** Do not archive in favour of `book-developer-platform`.
+Recommended 2026-10-15 from repository evidence; confirmed by the owner on
+2026-10-16.
 
 ## The question
 
@@ -52,10 +53,10 @@ CI/CD, flags) does not overlap this repository's shared-contract role.
 
 - Replace the vendored `check.py` copies in platform repositories with one
   shared check from this repository (roadmap `bcore` goal).
-- Update the catalog and archive nothing until the owner confirms this decision.
+- Archive nothing; record this keep decision in the catalog when it is next refreshed.
 
 | Field | Value |
 |---|---|
-| Decision | keep (recommended) |
+| Decision | **keep** |
 | Recorded by | Claude Code session, 2026-10-15 |
-| Owner confirmation | PENDING — bookchaowalit |
+| Owner confirmation | Confirmed 2026-10-16 by bookchaowalit ("ทั้งหมด ยกเว้น 140/256 (Recommended)" — adopt the recommended option) |
