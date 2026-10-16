@@ -1,20 +1,21 @@
 # platform-backend-core
 
-Starter repository for the `bookchaowalit-backend` organization.
+Shared contracts and installable workspace runtime for `bookchaowalit-backend`.
 
 ## Purpose
 
-This repository is an intentionally thin baseline for shared backend
-conventions, API contracts, services, and workers. It contains no product
-features or runtime yet. Its first shared artifact is the canonical Book
-Platform repository contract schema in [`contracts/`](contracts/README.md).
+This repository owns the canonical Book Platform repository contract schema
+in [`contracts/`](contracts/README.md) and the `platform-backend-core` Python
+package: workspace JWT verification, PostgreSQL transaction context, explicit
+migrations, HTTP lifecycle and disposable database test support.
+See [`docs/runtime.md`](docs/runtime.md) for interfaces and installation.
 
 ## Repository boundary
 
 - **Owner:** `bookchaowalit-backend`
 - **Lifecycle:** shared backend foundation
 - **Default branch:** `main`
-- **Status:** starter / skeleton
+- **Status:** shared runtime implemented; production activation is service-owned
 
 ## CI
 
@@ -23,11 +24,12 @@ and pull requests. The check verifies that the baseline files remain present,
 that shared schemas use only the JSON Schema subset the platform repositories
 enforce, that `contracts/book-platform.contract.v1.schema.json.sha256` pins
 the current schema digest, and that `contracts/examples/valid` passes while
-`contracts/examples/invalid` fails.
+`contracts/examples/invalid` fails. A separate Python 3.12 job installs the
+runtime and runs PostgreSQL 16 RLS, migration and HTTP/auth tests.
 
 ## Local development
 
-There is no runtime or third-party dependency. With Python 3.11+:
+Offline contract checks require only Python 3.11+:
 
 ```bash
 python3 scripts/check.py
@@ -36,8 +38,11 @@ python3 -m unittest discover -s tests -v
 python3 scripts/check_platform_sync.py --workspace ..
 ```
 
-Add implementation only when a concrete backend product or shared contract is
-approved. Planned work is tracked in [`docs/UPGRADE-PLAN.md`](docs/UPGRADE-PLAN.md).
+Runtime development requires Python >=3.12 and `python -m pip install -e ".[test]"`.
+Run `python -m pytest`; supply an explicit disposable PostgreSQL admin DSN as
+`PLATFORM_TEST_DSN` for real RLS/concurrency tests. Database tests otherwise skip
+visibly. Runtime documentation records remaining service and release boundaries.
+Earlier plans remain in [`docs/UPGRADE-PLAN.md`](docs/UPGRADE-PLAN.md).
 
 ## License
 
