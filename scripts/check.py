@@ -160,8 +160,10 @@ def pin_errors(root: Path) -> list[str]:
     actual = hashlib.sha256(schema_path.read_bytes()).hexdigest()
     if match.group(1) != actual:
         return [
-            f"{PLATFORM_SCHEMA_PIN} is stale: schema sha256 is {actual}; update the pin and "
-            "re-vendor both files into every platform repository"
+            (
+                f"{PLATFORM_SCHEMA_PIN} is stale: schema sha256 is {actual}; update the pin and "
+                "re-vendor both files into every platform repository"
+            )
         ]
     return []
 
