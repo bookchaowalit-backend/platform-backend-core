@@ -3,10 +3,9 @@ from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
 
 import psycopg
+import pytest
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
-import pytest
-
 from test_auth import core
 
 
@@ -48,10 +47,9 @@ def test_rls_transaction_pool_reuse_and_rollback(db_env):
             assert conn.execute('SELECT value FROM items').fetchall() == []
             with pytest.raises(psycopg.errors.InsufficientPrivilege):
                 conn.execute('INSERT INTO items VALUES (%s, %s)', (a,'forged'))
-        with pytest.raises(RuntimeError):
-            with db.transaction(a) as conn:
-                conn.execute('INSERT INTO items VALUES (%s,%s)',(a,'rolled back'))
-                raise RuntimeError('abort')
+        with pytest.raises(RuntimeError), db.transaction(a) as conn:
+            conn.execute('INSERT INTO items VALUES (%s,%s)',(a,'rolled back'))
+            raise RuntimeError('abort')
         with db.transaction(a) as conn:
             assert conn.execute('SELECT value FROM items').fetchall() == [('committed',)]
         with db._pool.connection() as conn:
@@ -63,7 +61,9 @@ def test_rls_transaction_pool_reuse_and_rollback(db_env):
 
 
 def test_database_refuses_privileged_runtime_role(db_env):
-    with pytest.raises(Exception):
+    from psycopg_pool import PoolTimeout
+    # _configure rejects the superuser connection, so the pool never yields one.
+    with pytest.raises(PoolTimeout):
         db = core().Database(db_env[0], timeout=0.2)
         try:
             with db.transaction(uuid4()):
@@ -82,7 +82,7 @@ def test_migration_atomicity_drift_and_concurrent_lock(db_env):
     assert sorted(results, key=len) == [[], ['001']]
     with pytest.raises(core().MigrationDriftError):
         core().MigrationRunner(dsn).apply([core().Migration('001', 'SELECT 42')])
-    with pytest.raises(Exception):
+    with pytest.raises(psycopg.errors.DivisionByZero):
         core().MigrationRunner(dsn).apply([migration,core().Migration('002','CREATE TABLE lost (value integer); SELECT 1/0')])
     with psycopg.connect(dsn) as conn:
         assert conn.execute("SELECT to_regclass('lost')").fetchone() == (None,)
@@ -94,15 +94,15 @@ def test_pool_bounds_and_workspace_type():
 
 
 def test_pool_exhaustion_is_bounded(db_env):
-    from psycopg_pool import PoolTimeout
     import time
+
+    from psycopg_pool import PoolTimeout
     db = core().Database(db_env[1], max_size=1, timeout=.1)
     try:
         with db.transaction(uuid4()):
             start = time.monotonic()
-            with pytest.raises(PoolTimeout):
-                with db.transaction(uuid4()):
-                    pass
+            with pytest.raises(PoolTimeout), db.transaction(uuid4()):
+                pass
             assert time.monotonic() - start < 1
     finally:
         db.close()

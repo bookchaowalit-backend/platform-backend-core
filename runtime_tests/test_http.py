@@ -1,9 +1,9 @@
 import asyncio
+from typing import Annotated
 
-import pytest
 from fastapi import Depends, Request
 from fastapi.testclient import TestClient
-from test_auth import core, keys, claims, token, verifier
+from test_auth import claims, core, token, verifier
 
 
 class DatabaseFixture:
@@ -20,7 +20,7 @@ def app_for(keys, **kwargs):
     db = DatabaseFixture()
     app = core().create_app('test-service', db, verifier(keys), **kwargs)
     @app.post('/items')
-    async def items(request: Request, principal=Depends(core().require_scope('tasks:write'))):
+    async def items(request: Request, principal: Annotated[object, Depends(core().require_scope('tasks:write'))]):
         return {'workspace':str(principal.workspace), 'size':len(await request.body())}
     @app.get('/fail')
     async def fail():

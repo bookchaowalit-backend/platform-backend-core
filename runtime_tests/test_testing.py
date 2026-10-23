@@ -1,7 +1,7 @@
 import os
+
 import psycopg
 import pytest
-from test_auth import core
 
 
 def test_disposable_database_role_and_cleanup():

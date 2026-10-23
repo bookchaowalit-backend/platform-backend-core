@@ -5,8 +5,6 @@ from uuid import uuid4
 
 import jwt
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
 
 
 def core():
@@ -15,15 +13,10 @@ def core():
     return platform_backend_core
 
 
-@pytest.fixture(scope='module')
-def keys():
-    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    return private, private.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
-
-
 def claims():
     now = int(time.time())
-    return dict(iss='https://issuer.test', aud='tasks', sub=str(uuid4()), ws=str(uuid4()), iat=now, exp=now+300, jti=str(uuid4()), scope='tasks:read tasks:write')
+    return {'iss': 'https://issuer.test', 'aud': 'tasks', 'sub': str(uuid4()), 'ws': str(uuid4()), 'iat': now, 'exp': now+300,
+            'jti': str(uuid4()), 'scope': 'tasks:read tasks:write'}
 
 
 def verifier(keys):
@@ -87,9 +80,10 @@ def test_additional_strict_claims(keys, field, value):
 
 
 def test_jwks_requires_https_and_refresh_is_bounded(keys, monkeypatch):
-    from platform_backend_core import auth
     import io
     import json
+
+    from platform_backend_core import auth
     with pytest.raises(ValueError):
         auth.TokenVerifier(issuer='https://issuer.test',audience='tasks',jwks_url='http://key.test/jwks')
     key = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(keys[0].public_key()))
@@ -113,9 +107,10 @@ def test_jwks_requires_https_and_refresh_is_bounded(keys, monkeypatch):
 
 @pytest.mark.parametrize('invalid_tail', ['duplicate', 'malformed', 'invalid-kid'])
 def test_jwks_rejects_entire_failed_refresh_until_valid_refresh(keys, monkeypatch, invalid_tail):
-    from platform_backend_core import auth
     import io
     import json
+
+    from platform_backend_core import auth
     key = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(keys[0].public_key()))
     key.update(kid='test-key', alg='RS256', use='sig')
     tail = {'duplicate':key, 'malformed':42, 'invalid-kid':{**key,'kid':''}}[invalid_tail]
