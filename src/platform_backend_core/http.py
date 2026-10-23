@@ -1,20 +1,20 @@
 """FastAPI lifecycle, workspace authorization, bounded requests and safe diagnostics."""
 import asyncio
-from collections import Counter
-from contextlib import asynccontextmanager
 import logging
 import math
 import re
 import threading
 import time
+from collections import Counter
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, PlainTextResponse
 from starlette.concurrency import run_in_threadpool
 
-from .auth import AuthenticationError, _SCOPE
+from .auth import _SCOPE, AuthenticationError
 
 _LOG = logging.getLogger('platform_backend_core.http')
 
@@ -147,7 +147,7 @@ def create_app(service_name: str, database, verifier, *, max_body_bytes=1048576,
     def readyz():
         try:
             ready = database.ready() and all(check() is True for check in tuple(app.state.readiness_checks.values()))
-        except Exception:
+        except Exception:  # noqa: BLE001  readiness fails closed; check errors must not leak or crash the probe
             ready = False
         return JSONResponse({'status':'ready' if ready else 'unavailable'},200 if ready else 503)
 

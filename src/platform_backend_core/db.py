@@ -1,6 +1,6 @@
 """Bounded synchronous PostgreSQL transactions with local workspace authority."""
-from contextlib import contextmanager
 import math
+from contextlib import contextmanager
 from uuid import UUID
 
 from psycopg_pool import ConnectionPool
@@ -37,17 +37,16 @@ class Database:
     @contextmanager
     def transaction(self, workspace: UUID):
         if not isinstance(workspace, UUID):
-            raise ValueError('workspace must be a UUID from the verified principal')
-        with self._pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("SELECT set_config('app.workspace_id', %s, true)", (str(workspace),))
-                yield conn
+            raise TypeError('workspace must be a UUID from the verified principal')
+        with self._pool.connection() as conn, conn.transaction():
+            conn.execute("SELECT set_config('app.workspace_id', %s, true)", (str(workspace),))
+            yield conn
 
     def ready(self) -> bool:
         try:
             with self._pool.connection() as conn:
                 return conn.execute('SELECT 1').fetchone() == (1,)
-        except Exception:
+        except Exception:  # noqa: BLE001  readiness probe fails closed on any database error
             return False
 
     def close(self):

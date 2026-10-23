@@ -4,5 +4,14 @@ from .db import Database
 from .http import create_app, require_scope
 from .migrations import Migration, MigrationDriftError, MigrationRunner
 
-__all__ = ['AuthenticationError', 'Principal', 'TokenVerifier', 'Database', 'create_app', 'require_scope',
-           'Migration', 'MigrationDriftError', 'MigrationRunner']
+__all__ = [
+    'AuthenticationError',
+    'Database',
+    'Migration',
+    'MigrationDriftError',
+    'MigrationRunner',
+    'Principal',
+    'TokenVerifier',
+    'create_app',
+    'require_scope',
+]

@@ -1,7 +1,7 @@
 """Explicit disposable PostgreSQL fixtures; never discover credentials or environments."""
+import re
 from contextlib import contextmanager
 from dataclasses import dataclass
-import re
 from uuid import uuid4
 
 import psycopg

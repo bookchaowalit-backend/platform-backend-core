@@ -1,11 +1,11 @@
 """Explicit transactional migrations. Never invoked by application startup."""
 import argparse
-from collections.abc import Sequence
-from dataclasses import dataclass
 import hashlib
 import os
-from pathlib import Path
 import re
+from collections.abc import Sequence
+from dataclasses import dataclass
+from pathlib import Path
 
 import psycopg
 
@@ -76,6 +76,6 @@ def main():
         parser.error('no SQL migrations found')
     try:
         applied = MigrationRunner(dsn, namespace=args.namespace).apply(migrations)
-    except Exception:
+    except Exception:  # noqa: BLE001  CLI boundary: exit 1 without echoing DSN-bearing error text
         parser.exit(1, 'migration failed; inspect migration history and database access\n')
     print(f'applied {len(applied)} migrations')

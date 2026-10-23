@@ -1,13 +1,13 @@
 """Explicit RS256 workspace tokens; never import the owner-only SDK profile."""
-from collections.abc import Callable
-from dataclasses import dataclass
 import json
 import math
 import re
 import threading
 import time
+from collections.abc import Callable
+from dataclasses import dataclass
 from urllib.parse import urlparse
-from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import UUID
 
 import jwt
@@ -28,7 +28,7 @@ class Principal:
 
     def __post_init__(self):
         if not isinstance(self.actor, UUID) or not isinstance(self.workspace, UUID):
-            raise ValueError('actor and workspace must be UUIDs')
+            raise TypeError('actor and workspace must be UUIDs')
         if not isinstance(self.scopes, frozenset) or any(not isinstance(s, str) or not _SCOPE.fullmatch(s) for s in self.scopes):
             raise ValueError('invalid scopes')
 
@@ -67,7 +67,8 @@ class _JWKS:
                 validated_keys, identifiers = {}, set()
                 for key in keys:
                     if not isinstance(key, dict):
-                        raise ValueError('invalid JWKS entry')
+                        # Malformed remote document, not a caller type error; verify() maps it to AuthenticationError.
+                        raise ValueError('invalid JWKS entry')  # noqa: TRY004
                     identifier = key.get('kid')
                     if not isinstance(identifier, str) or not 1 <= len(identifier) <= 256:
                         raise ValueError('invalid key identifier')
@@ -141,5 +142,5 @@ class TokenVerifier:
             if len(scopes) > 128 or any(not _SCOPE.fullmatch(s) for s in scopes):
                 raise ValueError('invalid scope')
             return Principal(actor, workspace, frozenset(scopes))
-        except Exception:
+        except Exception:  # noqa: BLE001  fail closed: any verification failure is an opaque auth error
             raise AuthenticationError('invalid credentials') from None
