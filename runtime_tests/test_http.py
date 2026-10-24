@@ -1,5 +1,5 @@
 import asyncio
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, Request
 from fastapi.testclient import TestClient
@@ -20,7 +20,7 @@ def app_for(keys, **kwargs):
     db = DatabaseFixture()
     app = core().create_app('test-service', db, verifier(keys), **kwargs)
     @app.post('/items')
-    async def items(request: Request, principal: Annotated[object, Depends(core().require_scope('tasks:write'))]):
+    async def items(request: Request, principal: Annotated[Any, Depends(core().require_scope('tasks:write'))]):
         return {'workspace':str(principal.workspace), 'size':len(await request.body())}
     @app.get('/fail')
     async def fail():

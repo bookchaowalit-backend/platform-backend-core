@@ -6,6 +6,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import UUID
@@ -118,7 +119,7 @@ class TokenVerifier:
             header = jwt.get_unverified_header(token)
             if header.get('alg') != 'RS256' or header.get('crit'):
                 raise ValueError('unsupported signature')
-            key = self.key_source(header) if self.key_source else self.public_key
+            key: Any = self.key_source(header) if self.key_source else self.public_key
             data = jwt.decode(token, key, algorithms=['RS256'], issuer=self.issuer, audience=self.audience,
                               leeway=self.leeway, options={'require':['sub','ws','iat','exp','jti','iss','aud'], 'strict_aud': True})
             # Shared services cannot enforce delegation status or revocation.

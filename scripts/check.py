@@ -44,7 +44,7 @@ SUPPORTED_KEYWORDS = frozenset(
         "additionalProperties",
     }
 )
-JSON_TYPES = {
+JSON_TYPES: dict[str, type | tuple[type, ...]] = {
     "object": dict,
     "array": list,
     "string": str,

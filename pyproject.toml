@@ -12,6 +12,8 @@ dependencies = ["fastapi>=0.115,<1", "psycopg[binary,pool]>=3.2,<4", "PyJWT[cryp
 
 [project.optional-dependencies]
 test = ["pytest>=8,<10", "httpx>=0.27,<1"]
+# Lint, type check and coverage tools for CI (uv sync --frozen --all-extras).
+dev = ["mypy==2.4.0", "ruff==0.17.1", "pytest-cov==7.1.0"]
 
 [project.scripts]
 platform-migrate = "platform_backend_core.migrations:main"
@@ -22,3 +24,23 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests", "runtime_tests"]
 pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["src/platform_backend_core", "scripts"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src", "scripts", "tests", "runtime_tests"]
+# runtime_tests import shared helpers from test_auth (pytest rootdir import mode).
+mypy_path = "src:runtime_tests"
+explicit_package_bases = true
+check_untyped_defs = true
+strict_equality = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unused_ignores = true

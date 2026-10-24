@@ -136,7 +136,8 @@ def create_app(service_name: str, database, verifier, *, max_body_bytes=1048576,
     async def invalid_request(request, exc):
         return JSONResponse({'detail':'invalid request'},422)
 
-    metrics, lock = Counter(), threading.Lock()
+    metrics: Counter[tuple[str, int]] = Counter()
+    lock = threading.Lock()
     app.add_middleware(_Boundary, max_body_bytes=max_body_bytes, request_timeout=request_timeout, metrics=metrics, lock=lock)
 
     @app.get('/healthz', include_in_schema=False)

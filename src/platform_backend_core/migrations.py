@@ -47,7 +47,7 @@ class MigrationRunner:
             conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", ('platform-migrations:shared-history',))
             conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", ('platform-migrations:'+self.namespace,))
             conn.execute('CREATE TABLE IF NOT EXISTS platform_schema_migrations (namespace text NOT NULL, version text NOT NULL, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (namespace,version))')
-            existing = dict(conn.execute('SELECT version,checksum FROM platform_schema_migrations WHERE namespace=%s', (self.namespace,)).fetchall())
+            existing: dict[str, str] = dict(conn.execute('SELECT version,checksum FROM platform_schema_migrations WHERE namespace=%s', (self.namespace,)).fetchall())
             supplied = {m.version:m for m in migrations}
             if any(version not in supplied or supplied[version].checksum != checksum for version, checksum in existing.items()):
                 raise MigrationDriftError('migration history differs from supplied migrations')
