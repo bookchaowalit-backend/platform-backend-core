@@ -147,7 +147,7 @@ def test_pool_replaces_a_connection_the_server_closed(db_env):
         with db._pool.connection() as conn:
             pid = conn.info.backend_pid
         with psycopg.connect(admin_dsn) as admin:
-            assert admin.execute('SELECT pg_terminate_backend(%s)', (pid,)).fetchone()[0] is True
+            assert admin.execute('SELECT pg_terminate_backend(%s)', (pid,)).fetchone() == (True,)
         assert db.ready() is True
         with db.transaction(uuid4()) as conn:
             assert conn.execute('SELECT 1').fetchone() == (1,)
