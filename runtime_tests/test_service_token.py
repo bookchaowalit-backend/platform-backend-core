@@ -151,7 +151,8 @@ def test_rejects_bad_configuration(keys, identity, options):
 
 
 def test_rejects_small_or_non_rsa_keys(keys, identity):
-    small = rsa.generate_private_key(public_exponent=65537, key_size=1024)
+    # Deliberately too small: the test proves such a key is refused.
+    small = rsa.generate_private_key(public_exponent=65537, key_size=1024)  # nosemgrep: python.cryptography.security.insufficient-rsa-key-size.insufficient-rsa-key-size
     with pytest.raises(ValueError):
         source(keys, identity, [0.0], private_key_pem=pem(small))
 
