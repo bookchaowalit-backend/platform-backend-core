@@ -5,6 +5,7 @@ RSA key (platform-identity docs/SERVICE-CLIENTS.md), caches the access token and
 renews it before it expires. The private key and tokens are never logged,
 returned in errors or shown in ``repr``.
 """
+import http.client
 import json
 import re
 import threading
@@ -47,6 +48,7 @@ def _post(url: str, form: bytes, timeout: float) -> tuple[int, bytes]:
         with build_opener(_NoRedirect).open(request, timeout=timeout) as response:
             return response.status, response.read(MAX_RESPONSE_BYTES + 1)
     except HTTPError as error:
+        error.close()
         return error.code, b''
 
 
@@ -56,11 +58,14 @@ class ServiceTokenSource:
     A token is renewed ``refresh_margin`` seconds (at most half its life) before it expires.
     When renewal fails the current token is used while it is still valid, and the next
     attempt waits ``RETRY_AFTER_FAILURE_SECONDS``; an expired token is never returned.
+    Expiry is tracked on ``clock`` (monotonic); ``wall_clock`` only dates the assertion.
+    One lock covers renewal, so concurrent callers wait for a single request (at most
+    about ``REQUEST_TIMEOUT_SECONDS`` per network step) instead of sending their own.
     """
 
     def __init__(self, *, token_url: str, client_id: str, private_key_pem: str, audience: str,
-                 scope: str | None = None, refresh_margin: int = 60, clock: Callable[[], float] = time.time,
-                 post: Post | None = None):
+                 scope: str | None = None, refresh_margin: int = 60, clock: Callable[[], float] = time.monotonic,
+                 wall_clock: Callable[[], float] = time.time, post: Post | None = None):
         parsed = urlparse(token_url)
         if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
             raise ValueError('token_url must be an HTTPS URL')
@@ -79,7 +84,7 @@ class ServiceTokenSource:
         if not isinstance(key, rsa.RSAPrivateKey) or key.key_size < 2048:
             raise ValueError('the client key must be an RSA private key of at least 2048 bits')
         self._token_url, self._client_id, self._audience, self._scope = token_url, client_id, audience, scope
-        self._key, self._refresh_margin, self._clock = key, refresh_margin, clock
+        self._key, self._refresh_margin, self._clock, self._wall_clock = key, refresh_margin, clock, wall_clock
         self._post = post or _post
         self._token: str | None = None
         self._expires_at = self._renew_at = self._retry_at = 0.0
@@ -97,6 +102,7 @@ class ServiceTokenSource:
                 try:
                     self._fetch(now)
                 except ServiceTokenError:
+                    now = self._clock()  # the failed request took time; judge expiry after it
                     self._retry_at = now + RETRY_AFTER_FAILURE_SECONDS
                     if self._token is None or now >= self._expires_at:
                         self._token = None
@@ -107,7 +113,7 @@ class ServiceTokenSource:
             return 'Bearer ' + self._token
 
     def _fetch(self, now: float) -> None:
-        issued = int(now)
+        issued = int(self._wall_clock())
         assertion = jwt.encode({'iss': self._client_id, 'sub': self._client_id, 'aud': self._token_url,
                                 'iat': issued, 'exp': issued + ASSERTION_LIFETIME_SECONDS,
                                 'jti': str(uuid.uuid4())}, self._key, algorithm='RS256')
@@ -117,7 +123,7 @@ class ServiceTokenSource:
             form['scope'] = self._scope
         try:
             status, body = self._post(self._token_url, urlencode(form).encode(), REQUEST_TIMEOUT_SECONDS)
-        except OSError:
+        except (OSError, http.client.HTTPException, RecursionError):
             raise ServiceTokenError('identity is unreachable') from None
         if status != 200:
             raise ServiceTokenError(f'identity refused the token request (HTTP {status})')
@@ -130,7 +136,7 @@ class ServiceTokenSource:
                     or not _TOKEN.fullmatch(token) or isinstance(expires_in, bool) or not isinstance(expires_in, int)
                     or not 0 < expires_in <= 86400):
                 raise ValueError()
-        except (ValueError, TypeError, KeyError, AttributeError):
+        except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
             raise ServiceTokenError('identity returned an invalid token response') from None
         self._token = token
         self._expires_at = now + expires_in

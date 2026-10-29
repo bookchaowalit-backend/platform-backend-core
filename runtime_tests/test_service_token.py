@@ -46,7 +46,7 @@ def identity(keys):
 
 def source(keys, identity, now, **options):
     settings = {'token_url': TOKEN_URL, 'client_id': 'workflow-worker', 'private_key_pem': pem(keys[0]),
-                    'audience': 'workflow-api', 'scope': 'jobs:work', 'clock': lambda: now[0], 'post': identity}
+                    'audience': 'workflow-api', 'scope': 'jobs:work', 'clock': lambda: now[0], 'wall_clock': lambda: now[0], 'post': identity}
     settings.update(options)
     return ServiceTokenSource(**settings)
 
@@ -203,3 +203,68 @@ def test_default_transport_posts_the_form_and_never_follows_redirects():
         assert [path for path, _, _ in seen] == ['/v1/token', '/denied', '/redirect']
     finally:
         server.shutdown()
+
+
+def test_a_slow_failed_renewal_never_returns_the_token_that_expired_meanwhile(keys, identity):
+    now = [0.0]
+    tokens = source(keys, identity, now)
+    tokens.authorization()
+
+    def slow_failure(url, form, timeout):
+        now[0] += 10
+        raise OSError('timed out')
+    tokens._post = slow_failure
+    now[0] = 595
+    with pytest.raises(ServiceTokenError):
+        tokens.authorization()
+
+
+@pytest.mark.parametrize('error', [__import__('http.client').client.IncompleteRead(b''), RecursionError()])
+def test_odd_transport_and_parser_errors_become_service_token_errors(keys, identity, error):
+    def broken(url, form, timeout):
+        raise error
+    tokens = source(keys, identity, [0.0], post=broken)
+    with pytest.raises(ServiceTokenError):
+        tokens.authorization()
+
+
+def test_deeply_nested_json_is_an_invalid_response(keys, identity):
+    identity.body = b'[' * 60000 + b']' * 60000
+    with pytest.raises(ServiceTokenError):
+        source(keys, identity, [0.0]).authorization()
+
+
+@pytest.mark.parametrize('expires_in', [86401, 600.5])
+def test_expires_in_must_be_a_bounded_integer(keys, identity, expires_in):
+    identity.body = json.dumps({'access_token': 'x', 'token_type': 'Bearer', 'expires_in': expires_in}).encode()
+    with pytest.raises(ServiceTokenError):
+        source(keys, identity, [0.0]).authorization()
+
+
+def test_token_is_not_used_at_its_expiry_instant(keys, identity):
+    now = [0.0]
+    tokens = source(keys, identity, now, refresh_margin=0)
+    tokens.authorization()
+    identity.status, identity.body = 503, b''
+    now[0] = 600
+    with pytest.raises(ServiceTokenError):
+        tokens.authorization()
+
+
+def test_concurrent_callers_share_one_request(keys, identity):
+    import threading
+    tokens = source(keys, identity, [0.0])
+    threads = [threading.Thread(target=tokens.authorization) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(identity.calls) == 1
+
+
+def test_a_bad_key_error_hides_the_key_and_its_cause(keys, identity):
+    broken = '-----BEGIN PRIVATE KEY-----\nc2VjcmV0LW1hdGVyaWFs\n-----END PRIVATE KEY-----\n'
+    with pytest.raises(ValueError) as caught:
+        source(keys, identity, [0.0], private_key_pem=broken)
+    assert 'c2VjcmV0' not in str(caught.value)
+    assert caught.value.__cause__ is None and caught.value.__suppress_context__
