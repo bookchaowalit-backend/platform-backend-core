@@ -154,3 +154,25 @@ def test_pool_replaces_a_connection_the_server_closed(db_env):
             assert conn.info.backend_pid != pid
     finally:
         db.close()
+
+
+def test_defaults_allow_a_serverless_database_to_wake_up():
+    # Neon resumes suspended compute in roughly 5-10 seconds; the first request must
+    # wait for that instead of failing with a pool timeout.
+    db = core().Database('host=127.0.0.1 port=1 dbname=none')
+    try:
+        assert db._pool.timeout >= 20
+        assert db._pool.kwargs['connect_timeout'] >= 15
+    finally:
+        db.close()
+
+
+def test_connect_timeout_is_configurable_and_bounded():
+    db = core().Database('host=127.0.0.1 port=1 dbname=none', timeout=1.0, connect_timeout=1.0)
+    try:
+        assert db._pool.kwargs['connect_timeout'] == 1
+    finally:
+        db.close()
+    for bad in (0, -1, 61, float('nan')):
+        with pytest.raises(ValueError):
+            core().Database('host=127.0.0.1 port=1 dbname=none', connect_timeout=bad)

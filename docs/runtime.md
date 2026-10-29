@@ -135,9 +135,12 @@ access is private and must not be used by service code. Both `transaction` and
 `ready` are synchronous; call them from sync FastAPI handlers/dependencies or
 an explicit bounded thread pool, never block an async handler's event loop.
 
-Pools default to 0..8 connections, five-second acquisition/connect timeout,
-bounded waiting queue (`8 * max_size`), 30-minute lifetime and five-minute idle
-expiry. Pool maxima are limited to 128. SQL and idle-in-transaction timeouts
+Pools default to 0..8 connections, a 20-second acquisition timeout and a separate
+15-second connect timeout (`connect_timeout`), so a serverless database can resume
+suspended compute (Neon takes about 5-10 seconds) before the first request fails.
+Each connection is checked before it is handed out, so one the server closed while
+idle is replaced. Bounded waiting queue (`8 * max_size`), 30-minute lifetime and
+five-minute idle expiry. Pool maxima are limited to 128. SQL and idle-in-transaction timeouts
 default to ten seconds (maximum five minutes). Budget total database connections
 as replicas times pool size, including workers and migration connections.
 
