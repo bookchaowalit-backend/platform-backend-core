@@ -135,3 +135,22 @@ def test_first_migrations_in_different_namespaces_share_safe_history_initializat
         assert first.result(timeout=5) == ['001']
         assert second.result(timeout=5) == ['001']
         assert coordinator.execute('SELECT namespace,version FROM platform_schema_migrations ORDER BY namespace').fetchall() == [('first','001'),('second','001')]
+
+
+def test_pool_replaces_a_connection_the_server_closed(db_env):
+    # Serverless Postgres (e.g. Neon suspending idle compute) closes pooled connections;
+    # the next request must get a working connection, not a one-off failure.
+    admin_dsn, dsn, _, _, _ = db_env
+    tenant_table(dsn)
+    db = core().Database(dsn, min_size=1, max_size=1)
+    try:
+        with db._pool.connection() as conn:
+            pid = conn.info.backend_pid
+        with psycopg.connect(admin_dsn) as admin:
+            assert admin.execute('SELECT pg_terminate_backend(%s)', (pid,)).fetchone()[0] is True
+        assert db.ready() is True
+        with db.transaction(uuid4()) as conn:
+            assert conn.execute('SELECT 1').fetchone() == (1,)
+            assert conn.info.backend_pid != pid
+    finally:
+        db.close()
