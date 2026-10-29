@@ -22,7 +22,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
 ASSERTION_LIFETIME_SECONDS = 60
 RETRY_AFTER_FAILURE_SECONDS = 30
-REQUEST_TIMEOUT_SECONDS = 5.0
+REQUEST_TIMEOUT_SECONDS = 10.0  # identity may be waking from sleep
 MAX_RESPONSE_BYTES = 64 * 1024
 _NAME = re.compile(r'[A-Za-z0-9][A-Za-z0-9._:-]{0,127}')
 _SCOPE = re.compile(r'[A-Za-z0-9][A-Za-z0-9:._/-]{0,127}( [A-Za-z0-9][A-Za-z0-9:._/-]{0,127}){0,31}')
