@@ -18,6 +18,9 @@ class Database:
         self._pool = ConnectionPool(dsn, min_size=min_size, max_size=max_size, timeout=timeout,
                                     max_waiting=max_size * 8, max_lifetime=1800, max_idle=300,
                                     kwargs={'connect_timeout': max(1, math.ceil(timeout))},
+                                    # Serverless Postgres closes idle connections (Neon suspends compute);
+                                    # check before handing one out so the next request never gets a dead one.
+                                    check=ConnectionPool.check_connection,
                                     configure=self._configure, reset=self._reset, open=True)
 
     def _configure(self, conn):
