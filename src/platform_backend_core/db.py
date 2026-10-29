@@ -7,17 +7,21 @@ from psycopg_pool import ConnectionPool
 
 
 class Database:
-    def __init__(self, dsn, min_size=0, max_size=8, *, timeout=5.0, statement_timeout_ms=10000):
+    # Defaults leave room for serverless Postgres to resume suspended compute (Neon: ~5-10 s);
+    # the pool wait must outlast one connect attempt.
+    def __init__(self, dsn, min_size=0, max_size=8, *, timeout=20.0, connect_timeout=15.0, statement_timeout_ms=10000):
         if type(min_size) is not int or type(max_size) is not int or not 0 <= min_size <= max_size <= 128 or max_size == 0:
             raise ValueError('pool must satisfy 0 <= min_size <= max_size <= 128')
         if not isinstance(timeout, (int,float)) or not math.isfinite(timeout) or not 0 < timeout <= 60:
             raise ValueError('timeout must be finite and <= 60 seconds')
+        if not isinstance(connect_timeout, (int,float)) or not math.isfinite(connect_timeout) or not 0 < connect_timeout <= 60:
+            raise ValueError('connect_timeout must be finite and <= 60 seconds')
         if type(statement_timeout_ms) is not int or not 1 <= statement_timeout_ms <= 300000:
             raise ValueError('invalid statement timeout')
         self.statement_timeout_ms = statement_timeout_ms
         self._pool = ConnectionPool(dsn, min_size=min_size, max_size=max_size, timeout=timeout,
                                     max_waiting=max_size * 8, max_lifetime=1800, max_idle=300,
-                                    kwargs={'connect_timeout': max(1, math.ceil(timeout))},
+                                    kwargs={'connect_timeout': max(1, math.ceil(connect_timeout))},
                                     # Serverless Postgres closes idle connections (Neon suspends compute);
                                     # check before handing one out so the next request never gets a dead one.
                                     check=ConnectionPool.check_connection,
